@@ -29,6 +29,27 @@ const { start } = require('repl');
 client.on('qr', (qr) => {
     console.log(`[${moment().tz(config.timezone).format('HH:mm:ss')}] Scan the QR below : `);
     qrcode.generate(qr, { small: true });
+
+    // Create a route to display the QR code in a web page
+    app.get('/qr', (req, res) => {
+        const qrHtml = `
+            <html>
+            <head>
+                <title>WhatsApp QR Code</title>
+            </head>
+            <body>
+                <h1>Scan the QR code below:</h1>
+                <img src="data:image/png;base64,${qrcode.toDataURL(qr, { errorCorrectionLevel: 'H' })}" alt="WhatsApp QR Code">
+            </body>
+            </html>
+        `;
+        res.send(qrHtml);
+    });
+
+    // Start the Express server
+    app.listen(3000, () => {
+        console.log('Server is running on http://localhost:3000');
+    });
 });
 
 client.on('ready', () => {
