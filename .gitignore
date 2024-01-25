@@ -102,3 +102,7 @@ dist
 
 # TernJS port file
 .tern-port
+
+# Session client
+.wwebjs_auth/session-client/
+.wwebjs_cache/
