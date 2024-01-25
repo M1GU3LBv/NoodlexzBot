@@ -190,7 +190,7 @@ client.on('message', async (message) => {
     }
     else if (message.body.startsWith(`${config.prefix}vamos`))
     {
-        const file = fs.readFileSync('./static/audio/vamos gg #brianeitor [TubeRipper.com].mp3');
+        const file = fs.readFileSync('./static/audio/vamos gg brianeitor [TubeRipper.com].mp3');
         
         // Crea un objeto MessageMedia
         const media = new MessageMedia('audio/mp3', file.toString('base64'));
