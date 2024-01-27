@@ -3,9 +3,8 @@ const qrcode = require('qrcode-terminal');
 const moment = require('moment-timezone');
 const colors = require('colors');
 const mime = require('mime-types');
-const TikTokScraper = require('tiktok-scraper');
+
 const fs = require('fs');
-const ytdl = require('ytdl-core');
 const getStream = require('get-stream');
 /////////////////
 const express = require('express');
@@ -13,7 +12,13 @@ const app = express();
 /////////////////
 
 
+const { OpenAI } = require('openai');
+
+const openai = new OpenAI({ apiKey: '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' });
+
+
 const googleTTS = require('google-tts-api');
+
 const client = new Client({
     restartOnAuthFail: true,
     puppeteer: {
@@ -30,27 +35,6 @@ const { start } = require('repl');
 client.on('qr', (qr) => {
     console.log(`[${moment().tz(config.timezone).format('HH:mm:ss')}] Scan the QR below : `);
     qrcode.generate(qr, { small: true });
-
-    // Create a route to display the QR code in a web page
-    app.get('/qr', (req, res) => {
-        const qrHtml = `
-            <html>
-            <head>
-                <title>WhatsApp QR Code</title>
-            </head>
-            <body>
-                <h1>Scan the QR code below:</h1>
-                <img src="data:image/png;base64,${qrcode.toDataURL(qr, { errorCorrectionLevel: 'H' })}" alt="WhatsApp QR Code">
-            </body>
-            </html>
-        `;
-        res.send(qrHtml);
-    });
-
-    // Start the Express server
-    app.listen(3000, () => {
-        console.log('Server is running on http://localhost:3000');
-    });
 });
 
 client.on('ready', () => {
@@ -221,7 +205,6 @@ client.on('message', async (message) => {
         message.reply(media);
     }
 });
-// send tts
 
 
 client.on('message', async (message) => {
@@ -251,24 +234,6 @@ client.on('message', async (message) => {
 
 
 
-client.on('message', async (message) => {
-    if (message.body.includes('tiktok.com')) {
-        const url = message.body.match(/(http(s)?:\/\/)?([\w-]+\.)+[\w-]+(\/[\w- ;,./?%&=]*)?/)[0];
-        if (url) {
-            try {
-                const buffer = await TikTokScraper.video(url, { noWaterMark: true });
-                fs.writeFileSync('./tiktok.mp4', buffer);
-                const media = MessageMedia.fromFilePath('./tiktok.mp4');
-                message.reply(media);
-            } catch (error) {
-
-                console.error(error);
-                message.reply('Failed to download the TikTok video.');
-            }
-        }
-    }
-});
-
 
 client.on('message', async (message) => {
     if(message.body.startsWith(`${config.prefix}ping`)) {
@@ -283,36 +248,107 @@ client.on('message', async (message) => {
 
 client.on('message', async (message) => {
     if(message.body.startsWith(`${config.prefix}uptime`)) {
-        const timestamp = moment();
-        const start = moment();
-        await message.reply('*[⏳]* Loading..');
-        const end = moment();
-        const diff = end - start;
-        message.reply(`*[🤖] Uptime :* ${diff}ms`);
+        const uptime = process.uptime();
+        const hours = Math.floor(uptime / 3600);
+        const minutes = Math.floor((uptime % 3600) / 60);
+        const seconds = Math.floor(uptime % 60);
+
+        const uptimeMessage = `⏳Uptime: ${hours}h ${minutes}m ${seconds}s`;
+
+        client.sendMessage(message.from, uptimeMessage);
     }
 });
-
 
 
 
 client.on('message', async (message) => {
-    if(message.body.startsWith(`${config.prefix}yt`)) {
-        const url = message.body.split(`${config.prefix}yt `)[1];
-        if (ytdl.validateURL(url)) {
+    if(message.body.startsWith(`${config.prefix}weather`)) {
+        const url = message.body.split(`${config.prefix}weather `)[1];
+        if (url) {
             try {
-                const stream = ytdl(url);
-                const buffer = await getStream.buffer(stream);
-                const media = new MessageMedia('video/mp4', buffer.toString('base64'), 'video');
-                message.reply(media);
+                const response = await fetch(`https://wttr.in/${url}?format=j1`);
+                const data = await response.json();
+                const weatherMessage = `*[🌤] Weather :* ${data.current_condition[0].FeelsLikeC}°C\n*[🌡] Temperature :* ${data.current_condition[0].temp_C}°C\n*[💧] Humidity :* ${data.current_condition[0].humidity}%\n*[🌬] Wind :* ${data.current_condition[0].windspeedKmph}km/h`;
+                message.reply(weatherMessage);
             } catch (error) {
                 console.error(error);
-                message.reply('Failed to download the YouTube video.');
+                message.reply('Failed to get the weather.');
             }
-        } else {
-            message.reply('Please provide a valid YouTube URL.');
         }
     }
+    else if(message.body.startsWith(`${config.prefix}location`)) {
+        const url = message.body.split(`${config.prefix}location `)[1];
+        if (url) {
+            try {
+                const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${url}.json?access_token=${config.mapboxToken}`);
+                const data = await response.json();
+                const locationMessage = `*[📍] Location :* ${data.features[0].place_name}`;
+                message.reply(locationMessage);
+            } catch (error) {
+                console.error(error);
+                message.reply('Failed to get the location.');
+            }
+        }
+    }
+    else if (message.body.startsWith(`${config.prefix}love`)) {
+        const names = message.body.split(' ').slice(1);
+        if(names.length !== 2) {
+            client.sendMessage(message.from, 'Por favor, proporciona exactamente dos nombres.');
+            return;
+        }
+        const percentage = Math.floor(Math.random() * 101);
+        const loveMessage = `El amor entre ${names[0]} y ${names[1]} es del ${percentage}% ❤️`;
+        message.reply(loveMessage);
+    }
+    else if(message.body.startsWith(`${config.prefix}joke`)) {
+        try {
+            const response = await fetch('https://v2.jokeapi.dev/joke/Any?lang=es');
+            const data = await response.json();
+            const jokeMessage = data.setup ? `${data.setup}\n\n${data.delivery}` : data.joke;
+            client.sendMessage(message.from, jokeMessage);
+        } catch (error) {
+            console.error(error);
+            client.sendMessage(message.from, 'Failed to get a joke.');
+        }
+    }
+    else if(message.body.startsWith(`${config.prefix}dick`)) {
+    const medida = Math.floor(Math.random() * 30);
+    message.reply(`Tu pene mide ${medida} cm`);
+    }
+    else if( message.body.startsWith(`${config.prefix}info`)) {
+        const infoMessage = `*[🤖] Name :* ${config.name}\n*[👤] Author :* ${config.author}\n*[🎃] GitHub :* ${config.github}\n*[🌐] Version :* ${config.version}\n*[📆] Update :* ${config.update}`;
+        message.reply(infoMessage);
+    }
+    
+    else if(message.body.startsWith(`${config.prefix}gpt`)) {
+            console.log(message.body);
+            const prompt = message.body.split(`${config.prefix}gpt `)[1];
+            if (prompt) {
+                try {
+                    const completion = await openai.chat.completions.create({
+                        messages: [{ role:"user" ,content: prompt }],
+                        model: 'gpt-3.5-turbo',
+                    });
+                    message.reply(completion.choices[0].message.content);
+                } catch (error) {
+                    console.error(error);
+                    client.sendMessage(message.from, 'Failed to get a response from GPT-3.');
+                }
+            }
+        }   
+   
+
 });
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -353,15 +389,17 @@ app.listen(3000, () => {
 
 
 
-client.on('message', async (message) => {
-    if (message.body.startsWith(`${config.prefix}help`)) {
-        client.sendMessage(message.from, `*[🤖] Commands :*\n\n*${config.prefix}sticker* - Convert Image to Sticker\n*${config.prefix}image* - Convert Sticker to Image\n*${config.prefix}change <name> | <author>* - Change Sticker Name and Sticker Author\n\n*${config.prefix}help* - Show Commands\n*${config.prefix}info* - Show Information\n*${config.prefix}ping* - Show Ping\n*${config.prefix}uptime* - Show Uptime\n*${config.prefix}about* - Show About`, { quotedMessageId: message.id._serialized });
-
-
-    }
+client.on("message", async (message) => {
+  if (message.body.startsWith(`${config.prefix}help`)) {
+    client.sendMessage(
+      message.from,
+      `*[🤖] Commands :*\n\n*${config.prefix}sticker* - Convert Image to Sticker\n*${config.prefix}image* - Convert Sticker to Image\n*${config.prefix}change <name> | <author>* - Change Sticker Name and Sticker Author\n*${config.prefix}weather <location>* - Show Weather\n*${config.prefix}location <location>* - Show Location\n*${config.prefix}love <name> <name>* - Check Love\n*${config.prefix}joke* - Show Joke\n*${config.prefix}tts <text>* - Convert Text to Speech\n\n*${config.prefix}help* - Show Commands\n*${config.prefix}info* - Show Information\n*${config.prefix}ping* - Show Ping\n*${config.prefix}uptime* - Show Uptime\n*${config.prefix}about* - Show About`,
+      { quotedMessageId: message.id._serialized }
+    );
+  }
 });
                            
-client 
+
         
     
 

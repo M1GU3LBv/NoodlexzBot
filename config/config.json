@@ -1,7 +1,14 @@
 {
-    "name": "sticker bot",
-    "author": "BotNoodlexz",
+    "name": "Noodlexz bot",
+    "author": "Noodlexz",
+    "version": "1.2v",
+    "update":"12/02/2024",
+    "github": "https://github.com/anllacarpro",
     "prefix": "!",
+    "mapboxToken": "pk.eyJ1Ijoibm9vZGxleHoiLCJhIjoiY2xydHRyOTEyMGFsazJrczAzN3NxaWo4NSJ9.BS6CsdLzmcC_IvrZgMR97g",
+    "giphyToken":"yQALLPPYCAGmCZ7kEXBFfTkmWxxvoMz5",
+    "unsplashToken":"VBauxOZj18gkKxglf_1mWu5dmztGOcsbozsHeLYorcU",
+    "gptKEY":"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",
     "timezone": "Asia/Jakarta",
     "groups": true
 }
